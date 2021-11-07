@@ -4,6 +4,9 @@ import './App.css';
 import SelectCharacter from './Components/SelectCharacter';
 import { CONTRACT_ADDRESS, transformCharacterData } from './constants';
 import MyEpicNFT from './utils/MyEpicNFT.json';
+import Arena from './Components/Arena/index';
+import LoadingIndicator from './Components/LoadingIndicator';
+
 
 
 // Constants
@@ -13,6 +16,8 @@ const App = () => {
   // State
   const [currentAccount, setCurrentAccount] = useState(null);
   const [characterNFT, setCharacterNFT] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
 
 
   // Actions
@@ -22,27 +27,37 @@ const App = () => {
 
       if (!ethereum) {
         console.log('Make sure you have MetaMask!');
+        /*
+         * We set isLoading here because we use return in the next line
+         */
+        setIsLoading(false);
         return;
       } else {
         console.log('We have the ethereum object', ethereum);
-      }
 
-      const accounts = await ethereum.request({ method: 'eth_accounts' });
+        const accounts = await ethereum.request({ method: 'eth_accounts' });
 
-      if (accounts.length !== 0) {
-        const account = accounts[0];
-        console.log('Found an authorized account:', account);
-        setCurrentAccount(account);
-      } else {
-        console.log('No authorized account found');
+        if (accounts.length !== 0) {
+          const account = accounts[0];
+          console.log('Found an authorized account:', account);
+          setCurrentAccount(account);
+        } else {
+          console.log('No authorized account found');
+        }
       }
     } catch (error) {
       console.log(error);
     }
-  };
+    /*
+     * We release the state property after all the function logic
+     */
+    setIsLoading(false);
+};
 
  const renderContent = () => {
-
+  if (isLoading) {
+    return <LoadingIndicator />;
+  }
   
 
   if (!currentAccount) {
@@ -57,13 +72,16 @@ const App = () => {
         </button>
       </div>
     );
-  } else {
+  } else if (currentAccount && !characterNFT) {
     return <SelectCharacter setCharacterNFT={setCharacterNFT} />;	
 	/*
 	* If there is a connected wallet and characterNFT, it's time to battle!
 	*/
-  } 
+  } else if (currentAccount && characterNFT) {
+    return <Arena characterNFT={characterNFT} />;
+  }
 }; 
+
 
 
   /*
@@ -98,6 +116,7 @@ const App = () => {
   
 
   useEffect(() => {
+    setIsLoading(true);
      checkIfWalletIsConnected();
   }, []);
 
@@ -122,9 +141,8 @@ const App = () => {
       setCharacterNFT(transformCharacterData(characterNFT));
     }
 
-    /*
-     * Once we are done with all the fetching, set loading state to false
-     */
+    setIsLoading(false);
+
 
 
      const txn = await gameContract.checkIfUserHasNFT();
